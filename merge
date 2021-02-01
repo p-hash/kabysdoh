@@ -77,7 +77,7 @@ def is_in_cdn(domain, net, name):
         for (_, _, _, _, sockaddr) in addrinfo:
             ip = ip_address(sockaddr[0]) # IPv4 is IP:Port, but IPv6 is IP:Port:Something:More
             if not any(ip in n for n in net):
-                print('{:s} ({:s}) is not in expected CDN ({:s})'.format(domain, ip, name), file=sys.stderr)
+                print('{:s} ({}) is not in expected CDN ({:s})'.format(domain, ip, name), file=sys.stderr)
                 return False
     return True
 

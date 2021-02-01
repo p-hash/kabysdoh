@@ -22,13 +22,15 @@ amazon: amazon.json
 
 csv :
 	git clone --depth 1 https://github.com/zapret-info/z-i ./csv
-	rm -rf ./csv/*md ./csv/*txt ./csv/.git/
+js : csv
+	mkdir -p js
+	./parse-csv
 
 js/% : xml/%
 	./parse-xml $^ $@
 dump.lua :
 	./merge js/* | ./format-lua $@
-kabydump.pyjson : cloudflare amazon
+kabydump.pyjson : cloudflare amazon js
 	./merge cloudflare amazon js/* | ./format-pyjson $@
 
 run-cloudflare-top : top-1m.csv cloudflare
