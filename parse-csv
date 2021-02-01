@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+from ipaddress import IPv4Network, IPv4Address, IPv6Network, IPv6Address
+from hashlib import sha1
+import gzip
+import json
+import os
+import sys
+import tempfile
+import time
+import csv
+
+csv.field_size_limit(sys.maxsize)
+
+RKN_EPOCH = 1343462400 # Sat Jul 28 12:00:00 MSK 2012
+JSONZ_SUFFIX = '.kabysdoh.json'
+GZIP_LEVEL = 3 # {1,2,3} have ~same speed, 4 is 40% slower.
+
+# Parsing of dump.csv from zapret-info 
+def parse_csv(file):
+    parser = csv.reader(file, delimiter=';')
+    next(parser)
+    ipv4 = set()
+    ipv4net = set()
+    ipv6 = set()
+    ipv6net = set()
+    for line in parser:
+        addresses = line[0].split(' | ')
+        for addr in addresses:
+            if not addr: 
+                continue
+            if ':' in addr:
+                if '/' in addr:
+                    ipv6net.add(IPv6Network(addr))
+                else:
+                    ipv6.add(IPv6Address(addr))
+            else:
+                if '/' in addr:
+                    ipv4net.add(IPv4Network(addr))
+                else:
+                    ipv4.add(IPv4Address(addr))
+    return ipv4, ipv4net, ipv6, ipv6net
+
+def make_blob(src):
+    with open(src, encoding='cp1251') as fd:
+        ip4, net4, ip6, net6 = parse_csv(fd)
+        ip4 = [str(_) for _ in ip4]
+        net4 = [str(_) for _ in net4]
+        ip6 = [str(_) for _ in ip6]
+        net6 = [str(_) for _ in net6]
+        # NB: `blob` must have consistent content hash, e.g. there should be no timestamps.
+        blob = json.dumps({
+            'ip': ip4,
+            'ipSubnet': net4,
+            'ipv6': ip6,
+            'ipv6Subnet': net6,
+        }, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return blob
+
+def main():
+    src, dst = sys.argv[1:]
+    if os.path.exists(dst):
+        raise RuntimeError('Already exists', dst)
+    blob = make_blob(src)
+    filename = sha1(blob).hexdigest().lower() + JSONZ_SUFFIX
+    destdir = os.path.dirname(dst)
+    with tempfile.NamedTemporaryFile(dir=destdir) as raw, \
+         gzip.GzipFile(fileobj=raw, mode='wb', compresslevel=GZIP_LEVEL, filename=filename, mtime=RKN_EPOCH) as out:
+        out.write(blob)
+        out.flush()
+        raw.flush()
+        os.link(raw.name, dst)
+    update_time = os.path.getmtime(src)
+    os.utime(dst, (time.time(), update_time))
+
+if __name__ == '__main__':
+    main()

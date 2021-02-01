@@ -20,6 +20,10 @@ amazon.json :
 amazon: amazon.json
 	jq -r '(.prefixes[] | select(.service == "CLOUDFRONT") | .ip_prefix), (.ipv6_prefixes[] | select(.service == "CLOUDFRONT") | .ipv6_prefix)' $^ >$@
 
+csv :
+	git clone --depth 1 https://github.com/zapret-info/z-i ./csv
+	rm -rf ./csv/*md ./csv/*txt ./csv/.git/
+
 js/% : xml/%
 	./parse-xml $^ $@
 dump.lua :
